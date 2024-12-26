@@ -1,0 +1,82 @@
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import pandas as pd
+import numpy as np
+from tensorflow.keras.optimizers import Adam
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+
+# Input data and target variable
+X = data.drop('Fiyat (TL)', axis=1)  # Remove the target column
+y = data['Fiyat (TL)']  # Target variable
+
+# Identifying categorical and numerical columns
+categorical_features = ['Konum', 'Oda Sayısı', 'Asansör', 'Doğal Gaz']  # Categorical features
+numerical_features = ['Metrekare', 'Bina Yaşı', 'Kat Durumu']  # Numerical features
+
+# Transforming categorical data with OneHotEncoder
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', StandardScaler(), numerical_features),  # Standardize numerical features
+        ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features)  # Encode categorical features
+    ]
+)
+
+# Splitting data into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=24)  # Train-test split
+
+# Preprocessing features
+X_train = preprocessor.fit_transform(X_train)
+X_test = preprocessor.transform(X_test)
+
+# Scaling target variable
+scaler_y = MinMaxScaler()
+y_train = scaler_y.fit_transform(y_train.values.reshape(-1, 1))
+y_test = scaler_y.transform(y_test.values.reshape(-1, 1))
+
+# Input dimension for the model
+input_dim = X_train.shape[1]
+
+# MLP Model
+mlp_model = Sequential([
+    Dense(64, activation='relu', input_shape=(input_dim,)),  # First hidden layer
+    Dense(32, activation='relu'),  # Second hidden layer
+    Dense(1)  # Output layer (linear activation)
+])
+
+# Compiling the model
+mlp_model.compile(
+    optimizer=Adam(learning_rate=0.001),  # Adam optimizer with learning rate 0.001
+    loss='mean_squared_error',  # Loss function suitable for regression
+    metrics=['mean_squared_error']  # Additional metric: MSE
+)
+
+# Training the model
+mlp_model.fit(
+    X_train,
+    y_train,
+    epochs=50,  # Number of epochs
+    batch_size=8,  # Batch size
+    validation_data=(X_test, y_test)  # Validation data
+)
+
+# Predictions and performance evaluation
+y_pred = mlp_model.predict(X_test)
+y_pred = scaler_y.inverse_transform(y_pred)  # Convert predictions back to original scale
+y_test = scaler_y.inverse_transform(y_test)
+
+mse = mean_squared_error(y_test, y_pred)
+mae = mean_absolute_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+
+log_mse = np.log(mse)
+log_mae = np.log(mae)
+print(f"Mean Squared Error: {log_mse}")
+print(f"Mean Absolute Error: {log_mae}")
+print(f"R^2 Score: {r2}")
+
+# Printing the model summary
+mlp_model.summary()
